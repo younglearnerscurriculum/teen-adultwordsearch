@@ -8,22 +8,15 @@
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(to bottom right, #7C1948, #BB96F6, #A0E8D4);
-      color: #fdfdfd;
-      text-align: center;
-      padding: 20px;
+      color: #fdfdfd; text-align: center; padding: 20px;
     }
     h1 { color: #FFC683; margin-bottom: 10px; }
-    p { margin: 5px; }
     input, textarea, select, button {
-      margin: 8px; padding: 8px 12px;
+      margin: 6px; padding: 8px 12px;
       border-radius: 6px; border: none; font-size: 1em;
     }
-    textarea {
-      width: 70%; height: 70px; font-size: 1em;
-    }
-    button {
-      background: #F55331; color: white; cursor: pointer;
-    }
+    textarea { width: 70%; height: 70px; }
+    button { background: #F55331; color: white; cursor: pointer; }
     button:hover { background: #FFC683; color: #642F7F; }
     #wordsearch {
       display: grid; justify-content: center; margin-top: 20px; gap: 2px;
@@ -49,7 +42,7 @@
     }
     #popupContent {
       background: white; color: #142850;
-      padding: 20px; border-radius: 10px; max-width: 400px;
+      padding: 20px; border-radius: 10px; max-width: 420px;
       text-align: center;
     }
     #popup button { background: #F55331; margin-top: 12px; color: white; }
@@ -58,21 +51,24 @@
 <body>
   <h1>🔤 YLC Word Search 2025</h1>
 
-  <p>👥 Player 1: <input type="text" id="player1" placeholder="Name 1"></p>
-  <p>👥 Player 2: <input type="text" id="player2" placeholder="Name 2"></p>
-  <p>👥 Player 3 (optional): <input type="text" id="player3" placeholder="Name 3"></p>
+  <!-- One row for names -->
+  <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap; margin-bottom:10px;">
+    <p>👥 Player 1: <input type="text" id="player1" placeholder="Name 1"></p>
+    <p>👥 Player 2: <input type="text" id="player2" placeholder="Name 2"></p>
+    <p>👥 Player 3 (optional): <input type="text" id="player3" placeholder="Name 3"></p>
+  </div>
   <p>📅 Date: <input type="date" id="dateInput"></p>
 
-  <p>Enter words (max depends on grid size):</p>
+  <p>✍️ Paste your weekly spelling list:</p>
   <textarea id="wordsInput" placeholder="Example: hypothesis, contradiction, phenomenon"></textarea>
   <br>
-  <label for="gridSize">Choose Grid Size:</label>
+  <label for="gridSize">📐 Grid Size:</label>
   <select id="gridSize">
     <option value="10">10 × 10 (6 words)</option>
     <option value="15">15 × 15 (8 words)</option>
     <option value="20">20 × 20 (12 words)</option>
   </select>
-  <button onclick="generateWordSearch()">Generate Puzzle</button>
+  <button onclick="generateWordSearch()">▶️ Generate Puzzle</button>
 
   <div id="headerInfo"></div>
   <div id="timer"></div>
@@ -82,43 +78,57 @@
   <!-- Popup -->
   <div id="popup">
     <div id="popupContent">
-      <h2>🎉 Congratulations!</h2>
-      <p>You finished the puzzle.</p>
-      <p>📸 Please take a screenshot of your completed puzzle and share it with your teacher.</p>
+      <h2 id="popupTitle">🎉 Great Job!</h2>
+      <p id="popupScores"></p>
+      <p id="popupBadges"></p>
+      <p>➡️ 📸 Take Screenshot → Send to Teacher</p>
       <button onclick="closePopup()">OK</button>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script>
-    let grid = [], size = 10, words = [], foundWords = new Set();
-    let isDragging = false, selectedCells = [];
-    let timer;
+    let grid=[], size=10, words=[], foundWords=new Set();
+    let isDragging=false, selectedCells=[];
+    let timer, playerScores={p1:0,p2:0,p3:0};
 
-    function generateWordSearch() {
-      // get words and limits
-      const sizeVal = parseInt(document.getElementById("gridSize").value);
-      size = sizeVal;
-      let limit = size===10?6:(size===15?8:12);
+    const badges=[
+      "🌟 Persistence Star",
+      "🏅 Accuracy Champ",
+      "💡 Creative Thinker",
+      "🎯 Teamwork Hero",
+      "📚 Word Wizard",
+      "🎵 Confident Voice",
+      "✨ Quick Learner",
+      "💖 Supportive Friend"
+    ];
 
-      words = document.getElementById("wordsInput").value
-        .toUpperCase().split(",").map(w => w.trim())
-        .filter(w => w.length > 0).slice(0, limit);
+    // autofill date
+    window.onload=function(){
+      const today=new Date().toISOString().split('T')[0];
+      document.getElementById("dateInput").value=today;
+    };
 
-      if (words.length===0){alert("Enter at least 1 word!");return;}
+    function generateWordSearch(){
+      size=parseInt(document.getElementById("gridSize").value);
+      let limit=size===10?6:(size===15?8:12);
 
-      // header info
+      words=document.getElementById("wordsInput").value
+        .toUpperCase().split(",").map(w=>w.trim())
+        .filter(w=>w.length>0).slice(0,limit);
+
+      if(words.length===0){alert("⚠️ Enter words!");return;}
+
       const p1=document.getElementById("player1").value||"Player 1";
       const p2=document.getElementById("player2").value||"Player 2";
       const p3=document.getElementById("player3").value||"";
-      const dateVal=document.getElementById("dateInput").value||new Date().toLocaleDateString();
+      const dateVal=document.getElementById("dateInput").value;
       document.getElementById("headerInfo").innerHTML=`👥 ${p1}, ${p2}${p3?(", "+p3):""} | 📅 ${dateVal}`;
 
-      // reset
-      grid = Array.from({length:size},()=>Array(size).fill(""));
+      grid=Array.from({length:size},()=>Array(size).fill(""));
       foundWords.clear();
-      document.getElementById("popup").style.display="none";
+      playerScores={p1:0,p2:0,p3:0};
 
-      // directions
       const directions=[[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
 
       function placeWord(word){
@@ -145,31 +155,23 @@
 
       words.forEach(w=>placeWord(w));
 
-      // fill empty
       const alpha="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
       for(let r=0;r<size;r++)for(let c=0;c<size;c++)
         if(!grid[r][c])grid[r][c]=alpha[Math.floor(Math.random()*alpha.length)];
 
-      // render
       const board=document.getElementById("wordsearch");
       board.innerHTML="";board.style.gridTemplateColumns=`repeat(${size},32px)`;
-      grid.forEach((row,ri)=>{
-        row.forEach((letter,ci)=>{
-          const cell=document.createElement("div");
-          cell.className="cell";cell.textContent=letter;
-          cell.dataset.row=ri;cell.dataset.col=ci;
-          board.appendChild(cell);
-        });
-      });
+      grid.forEach((row,ri)=>{row.forEach((letter,ci)=>{
+        const cell=document.createElement("div");
+        cell.className="cell";cell.textContent=letter;
+        cell.dataset.row=ri;cell.dataset.col=ci;
+        board.appendChild(cell);
+      });});
 
-      // word list
       const wl=document.getElementById("wordList");
-      wl.innerHTML="<strong>Find these words:</strong><br>"+words.map(w=>`<span id="w_${w}">${w}</span>`).join(", ");
+      wl.innerHTML="🔎 Find these words:<br>"+words.map(w=>`<span id="w_${w}">${w}</span>`).join(", ");
 
-      // add drag events
       setupDragHandlers();
-
-      // start timer
       startTimer(600);
     }
 
@@ -184,8 +186,7 @@
     }
 
     function startSelect(e){
-      isDragging=true;selectedCells=[];
-      highlightCell(e.target);
+      isDragging=true;selectedCells=[];highlightCell(e.target);
     }
     function moveSelect(e){
       if(!isDragging)return;
@@ -196,15 +197,19 @@
       }
     }
     function endSelect(){
-      if(!isDragging)return;
-      isDragging=false;
+      if(!isDragging)return;isDragging=false;
       const word=selectedCells.map(c=>c.textContent).join("");
       const rev=word.split("").reverse().join("");
       if(words.includes(word)||words.includes(rev)){
         selectedCells.forEach(c=>c.classList.add("found"));
         foundWords.add(word);
         document.getElementById("w_"+(words.includes(word)?word:rev)).classList.add("crossed");
-        if(foundWords.size===words.length){showPopup();}
+        // assign random player point
+        const assign=["p1","p2","p3"].filter(k=>document.getElementById("player"+k[1]).value);
+        const randomPlayer=assign[Math.floor(Math.random()*assign.length)];
+        playerScores[randomPlayer]++;
+        // ✅ Only show awards if ALL words found
+        if(foundWords.size===words.length){showPopup(true);}
       }
       selectedCells.forEach(c=>c.classList.remove("highlight"));
       selectedCells=[];
@@ -212,29 +217,44 @@
     function highlightCell(cell){selectedCells.push(cell);cell.classList.add("highlight");}
 
     function startTimer(seconds){
-      clearInterval(timer);
-      let timeLeft=seconds;
-      const t=document.getElementById("timer");
-      t.classList.remove("warning");
+      clearInterval(timer);let timeLeft=seconds;
+      const t=document.getElementById("timer");t.classList.remove("warning");
       timer=setInterval(()=>{
         if(timeLeft===60){t.classList.add("warning");}
         t.textContent="⏳ Time left: "+Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,'0');
         if(timeLeft--<=0){
           clearInterval(timer);
-          t.classList.remove("warning");
           t.textContent="⛔ Time’s up!";
-          alert("⏰ Time’s up! Please screenshot your progress.");
+          showPopup(false); // ❌ no awards if timeout
         }
       },1000);
     }
 
-    function showPopup(){
-      document.getElementById("popup").style.display="flex";
-      launchConfetti();
+    function showPopup(success){
+      clearInterval(timer);
+      const p1=document.getElementById("player1").value||"Player 1";
+      const p2=document.getElementById("player2").value||"Player 2";
+      const p3=document.getElementById("player3").value||"";
+
+      if(success){
+        document.getElementById("popupTitle").textContent="🎉 Great Job Team!";
+        let scores=`➡️ ${p1}: ${playerScores.p1} pts<br>➡️ ${p2}: ${playerScores.p2} pts<br>`;
+        if(p3) scores+=`➡️ ${p3}: ${playerScores.p3} pts<br>`;
+        let badgeMsg="";
+        [p1,p2,p3].forEach((n)=>{if(n){const b=badges[Math.floor(Math.random()*badges.length)];badgeMsg+=`${n} → ${b}<br>`;}});
+        document.getElementById("popupScores").innerHTML=scores;
+        document.getElementById("popupBadges").innerHTML=badgeMsg;
+        document.getElementById("popup").style.display="flex";
+        launchConfetti();
+      } else {
+        document.getElementById("popupTitle").textContent="⏰ Time’s Up!";
+        document.getElementById("popupScores").innerHTML="➡️ 📸 Please Screenshot your progress.";
+        document.getElementById("popupBadges").innerHTML="";
+        document.getElementById("popup").style.display="flex";
+      }
     }
     function closePopup(){document.getElementById("popup").style.display="none";}
 
-    // confetti
     function launchConfetti(){
       const colors=["#FFC683","#642F7F","#F55331","#7C1948","#A0E8D4","#BB96F6"];
       const end=Date.now()+1500;
@@ -245,6 +265,5 @@
       }());
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </body>
 </html>
