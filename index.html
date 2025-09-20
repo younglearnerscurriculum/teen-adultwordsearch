@@ -7,95 +7,70 @@
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to bottom right, #142850, #27496d, #0c7b93);
+      background: linear-gradient(to bottom right, #7C1948, #BB96F6, #A0E8D4);
       color: #fdfdfd;
       text-align: center;
       padding: 20px;
     }
-    h1 {
-      color: #f6f5f5;
-      margin-bottom: 10px;
-    }
+    h1 { color: #FFC683; margin-bottom: 10px; }
     p { margin: 5px; }
     input, textarea, select, button {
-      margin: 8px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
-      font-size: 1em;
+      margin: 8px; padding: 8px 12px;
+      border-radius: 6px; border: none; font-size: 1em;
     }
     textarea {
-      width: 70%;
-      height: 70px;
-      font-size: 1em;
+      width: 70%; height: 70px; font-size: 1em;
     }
     button {
-      background: #00a8cc;
-      color: white;
-      cursor: pointer;
+      background: #F55331; color: white; cursor: pointer;
     }
-    button:hover { background: #007ea7; }
+    button:hover { background: #FFC683; color: #642F7F; }
     #wordsearch {
-      display: grid;
-      justify-content: center;
-      margin-top: 20px;
-      gap: 2px;
+      display: grid; justify-content: center; margin-top: 20px; gap: 2px;
     }
     .cell {
       width: 32px; height: 32px;
       display: flex; align-items: center; justify-content: center;
-      border: 1px solid #27496d;
-      background: #f6f5f5;
-      color: #142850;
-      font-weight: bold;
-      cursor: pointer;
-      user-select: none;
+      border: 1px solid #642F7F;
+      background: #fff; color: #642F7F;
+      font-weight: bold; user-select: none;
     }
-    .found { background: #00a8cc !important; color: white !important; }
-    #wordList { margin-top: 15px; font-size: 1.1em; color: #f6f5f5; }
+    .highlight { background: #FFC683 !important; }
+    .found { background: #BB96F6 !important; color: white !important; }
+    #wordList { margin-top: 15px; font-size: 1.1em; color: #fff; }
     .crossed { text-decoration: line-through; color: #d6d6d6; }
     #timer { margin-top: 15px; font-size: 1.2em; font-weight: bold; }
-    #award { margin-top: 20px; font-size: 1.4em; font-weight: bold; color: #ffdd59; }
-    #headerInfo { margin-top: 15px; font-size: 1em; color: #ffe; }
-
-    /* Popup styling */
+    #timer.warning { color: #F55331; animation: blink 1s step-start infinite; }
+    @keyframes blink { 50% { opacity: .4; } }
     #popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 9999;
-      justify-content: center;
-      align-items: center;
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7); z-index: 9999;
+      justify-content: center; align-items: center;
     }
     #popupContent {
-      background: white;
-      color: #142850;
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 400px;
+      background: white; color: #142850;
+      padding: 20px; border-radius: 10px; max-width: 400px;
       text-align: center;
     }
-    #popup button {
-      background: #00a8cc;
-      margin-top: 12px;
-    }
+    #popup button { background: #F55331; margin-top: 12px; color: white; }
   </style>
 </head>
 <body>
   <h1>🔤 YLC Word Search 2025</h1>
 
-  <p>👥 Player 1: <input type="text" id="player1" placeholder="Name 1">  
-  👥 Player 2: <input type="text" id="player2" placeholder="Name 2"></p>
+  <p>👥 Player 1: <input type="text" id="player1" placeholder="Name 1"></p>
+  <p>👥 Player 2: <input type="text" id="player2" placeholder="Name 2"></p>
+  <p>👥 Player 3 (optional): <input type="text" id="player3" placeholder="Name 3"></p>
   <p>📅 Date: <input type="date" id="dateInput"></p>
 
-  <p>Enter up to 12 SAT-level words (comma-separated):</p>
+  <p>Enter words (max depends on grid size):</p>
   <textarea id="wordsInput" placeholder="Example: hypothesis, contradiction, phenomenon"></textarea>
   <br>
   <label for="gridSize">Choose Grid Size:</label>
   <select id="gridSize">
-    <option value="15">15 × 15</option>
-    <option value="20">20 × 20</option>
+    <option value="10">10 × 10 (6 words)</option>
+    <option value="15">15 × 15 (8 words)</option>
+    <option value="20">20 × 20 (12 words)</option>
   </select>
   <button onclick="generateWordSearch()">Generate Puzzle</button>
 
@@ -103,7 +78,6 @@
   <div id="timer"></div>
   <div id="wordsearch"></div>
   <div id="wordList"></div>
-  <div id="award"></div>
 
   <!-- Popup -->
   <div id="popup">
@@ -116,97 +90,161 @@
   </div>
 
   <script>
-    let grid = [], size = 15, words = [], foundCount = 0, timer;
+    let grid = [], size = 10, words = [], foundWords = new Set();
+    let isDragging = false, selectedCells = [];
+    let timer;
 
     function generateWordSearch() {
+      // get words and limits
+      const sizeVal = parseInt(document.getElementById("gridSize").value);
+      size = sizeVal;
+      let limit = size===10?6:(size===15?8:12);
+
       words = document.getElementById("wordsInput").value
         .toUpperCase().split(",").map(w => w.trim())
-        .filter(w => w.length > 0).slice(0, 12);
-      size = parseInt(document.getElementById("gridSize").value);
-      if (words.length === 0) { alert("Enter at least 1 word!"); return; }
+        .filter(w => w.length > 0).slice(0, limit);
 
-      const player1 = document.getElementById("player1").value || "Player 1";
-      const player2 = document.getElementById("player2").value || "Player 2";
-      const dateVal = document.getElementById("dateInput").value || new Date().toLocaleDateString();
+      if (words.length===0){alert("Enter at least 1 word!");return;}
 
-      document.getElementById("headerInfo").innerHTML = 
-        `👥 ${player1} & ${player2} | 📅 ${dateVal}`;
+      // header info
+      const p1=document.getElementById("player1").value||"Player 1";
+      const p2=document.getElementById("player2").value||"Player 2";
+      const p3=document.getElementById("player3").value||"";
+      const dateVal=document.getElementById("dateInput").value||new Date().toLocaleDateString();
+      document.getElementById("headerInfo").innerHTML=`👥 ${p1}, ${p2}${p3?(", "+p3):""} | 📅 ${dateVal}`;
 
-      grid = Array.from({ length: size }, () => Array(size).fill(""));
-      foundCount = 0; document.getElementById("award").innerHTML = "";
+      // reset
+      grid = Array.from({length:size},()=>Array(size).fill(""));
+      foundWords.clear();
+      document.getElementById("popup").style.display="none";
 
-      // directions incl. backwards
-      const directions = [
-        [0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]
-      ];
+      // directions
+      const directions=[[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
 
-      function placeWord(word) {
-        for (let tries=0; tries<200; tries++) {
-          const dir = directions[Math.floor(Math.random()*directions.length)];
-          const row = Math.floor(Math.random()*size);
-          const col = Math.floor(Math.random()*size);
-          const endRow = row + dir[0]*(word.length-1);
-          const endCol = col + dir[1]*(word.length-1);
-          if (endRow<0 || endRow>=size || endCol<0 || endCol>=size) continue;
-
-          let canPlace = true;
-          for (let i=0;i<word.length;i++) {
-            const r=row+dir[0]*i, c=col+dir[1]*i;
-            if (grid[r][c] && grid[r][c]!==word[i]) { canPlace=false; break; }
+      function placeWord(word){
+        for(let tries=0;tries<200;tries++){
+          const dir=directions[Math.floor(Math.random()*directions.length)];
+          const row=Math.floor(Math.random()*size);
+          const col=Math.floor(Math.random()*size);
+          const endRow=row+dir[0]*(word.length-1);
+          const endCol=col+dir[1]*(word.length-1);
+          if(endRow<0||endRow>=size||endCol<0||endCol>=size) continue;
+          let can=true;
+          for(let i=0;i<word.length;i++){
+            const r=row+dir[0]*i,c=col+dir[1]*i;
+            if(grid[r][c]&&grid[r][c]!==word[i]){can=false;break;}
           }
-          if (!canPlace) continue;
-
-          for (let i=0;i<word.length;i++) {
-            const r=row+dir[0]*i, c=col+dir[1]*i;
-            grid[r][c]=word[i];
+          if(!can)continue;
+          for(let i=0;i<word.length;i++){
+            const r=row+dir[0]*i,c=col+dir[1]*i;grid[r][c]=word[i];
           }
           return true;
         }
         return false;
       }
 
-      words.forEach(w => placeWord(w));
+      words.forEach(w=>placeWord(w));
 
-      const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      for (let r=0;r<size;r++) for (let c=0;c<size;c++)
-        if (!grid[r][c]) grid[r][c]=alphabet[Math.floor(Math.random()*alphabet.length)];
+      // fill empty
+      const alpha="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      for(let r=0;r<size;r++)for(let c=0;c<size;c++)
+        if(!grid[r][c])grid[r][c]=alpha[Math.floor(Math.random()*alpha.length)];
 
-      const wordsearchDiv=document.getElementById("wordsearch");
-      wordsearchDiv.innerHTML=""; wordsearchDiv.style.gridTemplateColumns=`repeat(${size},32px)`;
+      // render
+      const board=document.getElementById("wordsearch");
+      board.innerHTML="";board.style.gridTemplateColumns=`repeat(${size},32px)`;
       grid.forEach((row,ri)=>{
         row.forEach((letter,ci)=>{
           const cell=document.createElement("div");
-          cell.className="cell"; cell.textContent=letter;
-          cell.onclick=()=>cell.classList.toggle("found");
-          wordsearchDiv.appendChild(cell);
+          cell.className="cell";cell.textContent=letter;
+          cell.dataset.row=ri;cell.dataset.col=ci;
+          board.appendChild(cell);
         });
       });
 
-      const wordListDiv=document.getElementById("wordList");
-      wordListDiv.innerHTML="<strong>Find these words:</strong><br>"+words.map(w=>`<span id="w_${w}">${w}</span>`).join(", ");
+      // word list
+      const wl=document.getElementById("wordList");
+      wl.innerHTML="<strong>Find these words:</strong><br>"+words.map(w=>`<span id="w_${w}">${w}</span>`).join(", ");
 
+      // add drag events
+      setupDragHandlers();
+
+      // start timer
+      startTimer(600);
+    }
+
+    function setupDragHandlers(){
+      const board=document.getElementById("wordsearch");
+      board.onmousedown=startSelect;
+      board.onmousemove=moveSelect;
+      document.onmouseup=endSelect;
+      board.ontouchstart=startSelect;
+      board.ontouchmove=moveSelect;
+      document.ontouchend=endSelect;
+    }
+
+    function startSelect(e){
+      isDragging=true;selectedCells=[];
+      highlightCell(e.target);
+    }
+    function moveSelect(e){
+      if(!isDragging)return;
+      const touch=e.touches?e.touches[0]:e;
+      const elem=document.elementFromPoint(touch.clientX,touch.clientY);
+      if(elem&&elem.classList.contains("cell")&&!selectedCells.includes(elem)){
+        highlightCell(elem);
+      }
+    }
+    function endSelect(){
+      if(!isDragging)return;
+      isDragging=false;
+      const word=selectedCells.map(c=>c.textContent).join("");
+      const rev=word.split("").reverse().join("");
+      if(words.includes(word)||words.includes(rev)){
+        selectedCells.forEach(c=>c.classList.add("found"));
+        foundWords.add(word);
+        document.getElementById("w_"+(words.includes(word)?word:rev)).classList.add("crossed");
+        if(foundWords.size===words.length){showPopup();}
+      }
+      selectedCells.forEach(c=>c.classList.remove("highlight"));
+      selectedCells=[];
+    }
+    function highlightCell(cell){selectedCells.push(cell);cell.classList.add("highlight");}
+
+    function startTimer(seconds){
       clearInterval(timer);
-      let timeLeft=600;
+      let timeLeft=seconds;
+      const t=document.getElementById("timer");
+      t.classList.remove("warning");
       timer=setInterval(()=>{
-        document.getElementById("timer").textContent="⏳ Time left: "+Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,'0');
-        if (--timeLeft<0){clearInterval(timer); alert("⏰ Time’s up! Try again.");}
+        if(timeLeft===60){t.classList.add("warning");}
+        t.textContent="⏳ Time left: "+Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,'0');
+        if(timeLeft--<=0){
+          clearInterval(timer);
+          t.classList.remove("warning");
+          t.textContent="⛔ Time’s up!";
+          alert("⏰ Time’s up! Please screenshot your progress.");
+        }
       },1000);
     }
 
-    // Show popup when all words are found (manual for now)
-    function checkCompletion() {
-      const foundCells = document.querySelectorAll(".cell.found").length;
-      if (foundCells > 0 && foundCells >= words.join("").length) {
-        showPopup();
-      }
+    function showPopup(){
+      document.getElementById("popup").style.display="flex";
+      launchConfetti();
     }
+    function closePopup(){document.getElementById("popup").style.display="none";}
 
-    function showPopup() {
-      document.getElementById("popup").style.display = "flex";
-    }
-    function closePopup() {
-      document.getElementById("popup").style.display = "none";
+    // confetti
+    function launchConfetti(){
+      const colors=["#FFC683","#642F7F","#F55331","#7C1948","#A0E8D4","#BB96F6"];
+      const end=Date.now()+1500;
+      (function frame(){
+        confetti({particleCount:5,angle:60,spread:55,origin:{x:0},colors});
+        confetti({particleCount:5,angle:120,spread:55,origin:{x:1},colors});
+        if(Date.now()<end){requestAnimationFrame(frame);}
+      }());
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </body>
 </html>
