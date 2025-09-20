@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YLC Word Search 2025</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom right, #142850, #27496d, #0c7b93);
+      color: #fdfdfd;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #f6f5f5;
+      margin-bottom: 10px;
+    }
+    p { margin: 5px; }
+    input, textarea, select, button {
+      margin: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 1em;
+    }
+    textarea {
+      width: 70%;
+      height: 70px;
+      font-size: 1em;
+    }
+    button {
+      background: #00a8cc;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #007ea7; }
+    #wordsearch {
+      display: grid;
+      justify-content: center;
+      margin-top: 20px;
+      gap: 2px;
+    }
+    .cell {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid #27496d;
+      background: #f6f5f5;
+      color: #142850;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+    .found { background: #00a8cc !important; color: white !important; }
+    #wordList { margin-top: 15px; font-size: 1.1em; color: #f6f5f5; }
+    .crossed { text-decoration: line-through; color: #d6d6d6; }
+    #timer { margin-top: 15px; font-size: 1.2em; font-weight: bold; }
+    #award { margin-top: 20px; font-size: 1.4em; font-weight: bold; color: #ffdd59; }
+    #headerInfo { margin-top: 15px; font-size: 1em; color: #ffe; }
+
+    /* Popup styling */
+    #popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    #popupContent {
+      background: white;
+      color: #142850;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      text-align: center;
+    }
+    #popup button {
+      background: #00a8cc;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔤 YLC Word Search 2025</h1>
+
+  <p>👥 Player 1: <input type="text" id="player1" placeholder="Name 1">  
+  👥 Player 2: <input type="text" id="player2" placeholder="Name 2"></p>
+  <p>📅 Date: <input type="date" id="dateInput"></p>
+
+  <p>Enter up to 12 SAT-level words (comma-separated):</p>
+  <textarea id="wordsInput" placeholder="Example: hypothesis, contradiction, phenomenon"></textarea>
+  <br>
+  <label for="gridSize">Choose Grid Size:</label>
+  <select id="gridSize">
+    <option value="15">15 × 15</option>
+    <option value="20">20 × 20</option>
+  </select>
+  <button onclick="generateWordSearch()">Generate Puzzle</button>
+
+  <div id="headerInfo"></div>
+  <div id="timer"></div>
+  <div id="wordsearch"></div>
+  <div id="wordList"></div>
+  <div id="award"></div>
+
+  <!-- Popup -->
+  <div id="popup">
+    <div id="popupContent">
+      <h2>🎉 Congratulations!</h2>
+      <p>You finished the puzzle.</p>
+      <p>📸 Please take a screenshot of your completed puzzle and share it with your teacher.</p>
+      <button onclick="closePopup()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    let grid = [], size = 15, words = [], foundCount = 0, timer;
+
+    function generateWordSearch() {
+      words = document.getElementById("wordsInput").value
+        .toUpperCase().split(",").map(w => w.trim())
+        .filter(w => w.length > 0).slice(0, 12);
+      size = parseInt(document.getElementById("gridSize").value);
+      if (words.length === 0) { alert("Enter at least 1 word!"); return; }
+
+      const player1 = document.getElementById("player1").value || "Player 1";
+      const player2 = document.getElementById("player2").value || "Player 2";
+      const dateVal = document.getElementById("dateInput").value || new Date().toLocaleDateString();
+
+      document.getElementById("headerInfo").innerHTML = 
+        `👥 ${player1} & ${player2} | 📅 ${dateVal}`;
+
+      grid = Array.from({ length: size }, () => Array(size).fill(""));
+      foundCount = 0; document.getElementById("award").innerHTML = "";
+
+      // directions incl. backwards
+      const directions = [
+        [0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]
+      ];
+
+      function placeWord(word) {
+        for (let tries=0; tries<200; tries++) {
+          const dir = directions[Math.floor(Math.random()*directions.length)];
+          const row = Math.floor(Math.random()*size);
+          const col = Math.floor(Math.random()*size);
+          const endRow = row + dir[0]*(word.length-1);
+          const endCol = col + dir[1]*(word.length-1);
+          if (endRow<0 || endRow>=size || endCol<0 || endCol>=size) continue;
+
+          let canPlace = true;
+          for (let i=0;i<word.length;i++) {
+            const r=row+dir[0]*i, c=col+dir[1]*i;
+            if (grid[r][c] && grid[r][c]!==word[i]) { canPlace=false; break; }
+          }
+          if (!canPlace) continue;
+
+          for (let i=0;i<word.length;i++) {
+            const r=row+dir[0]*i, c=col+dir[1]*i;
+            grid[r][c]=word[i];
+          }
+          return true;
+        }
+        return false;
+      }
+
+      words.forEach(w => placeWord(w));
+
+      const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      for (let r=0;r<size;r++) for (let c=0;c<size;c++)
+        if (!grid[r][c]) grid[r][c]=alphabet[Math.floor(Math.random()*alphabet.length)];
+
+      const wordsearchDiv=document.getElementById("wordsearch");
+      wordsearchDiv.innerHTML=""; wordsearchDiv.style.gridTemplateColumns=`repeat(${size},32px)`;
+      grid.forEach((row,ri)=>{
+        row.forEach((letter,ci)=>{
+          const cell=document.createElement("div");
+          cell.className="cell"; cell.textContent=letter;
+          cell.onclick=()=>cell.classList.toggle("found");
+          wordsearchDiv.appendChild(cell);
+        });
+      });
+
+      const wordListDiv=document.getElementById("wordList");
+      wordListDiv.innerHTML="<strong>Find these words:</strong><br>"+words.map(w=>`<span id="w_${w}">${w}</span>`).join(", ");
+
+      clearInterval(timer);
+      let timeLeft=600;
+      timer=setInterval(()=>{
+        document.getElementById("timer").textContent="⏳ Time left: "+Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,'0');
+        if (--timeLeft<0){clearInterval(timer); alert("⏰ Time’s up! Try again.");}
+      },1000);
+    }
+
+    // Show popup when all words are found (manual for now)
+    function checkCompletion() {
+      const foundCells = document.querySelectorAll(".cell.found").length;
+      if (foundCells > 0 && foundCells >= words.join("").length) {
+        showPopup();
+      }
+    }
+
+    function showPopup() {
+      document.getElementById("popup").style.display = "flex";
+    }
+    function closePopup() {
+      document.getElementById("popup").style.display = "none";
+    }
+  </script>
+</body>
+</html>
